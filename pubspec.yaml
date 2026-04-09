@@ -1,0 +1,61 @@
+name: nearhire
+description: NearHire - Local Hiring, Simplified. A hyperlocal GPS-based job discovery platform.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State Management
+  provider: ^6.1.2
+
+  # Networking
+  dio: ^5.7.0
+
+  # Secure Storage
+  flutter_secure_storage: ^9.2.2
+
+  # Lightweight Storage
+  shared_preferences: ^2.3.3
+
+  # Location
+  geolocator: ^13.0.2
+  permission_handler: ^11.3.1
+  geocoding: ^3.0.0
+
+  # Maps
+  google_maps_flutter: ^2.10.0
+
+  # Firebase (disabled for UI testing - re-enable with google-services.json)
+  # firebase_core: ^3.9.0
+  # firebase_messaging: ^15.1.6
+  # flutter_local_notifications: ^18.0.1
+
+  # File Handling
+  file_picker: ^8.1.7
+
+  # Real-time Messaging
+  socket_io_client: ^2.0.3+1
+
+  # Utilities
+  url_launcher: ^6.3.1
+  intl: ^0.19.0
+  flutter_rating_bar: ^4.0.1
+  cached_network_image: ^3.4.1
+  shimmer: ^3.0.0
+  google_fonts: ^6.2.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/icons/
