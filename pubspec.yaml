@@ -30,10 +30,13 @@ dependencies:
   # Maps
   google_maps_flutter: ^2.10.0
 
-  # Firebase (disabled for UI testing - re-enable with google-services.json)
-  # firebase_core: ^3.9.0
-  # firebase_messaging: ^15.1.6
-  # flutter_local_notifications: ^18.0.1
+  # Firebase
+  firebase_core: ^3.9.0
+  firebase_auth: ^5.4.1
+  cloud_firestore: ^5.6.0
+  firebase_storage: ^12.4.1
+  firebase_messaging: ^15.1.6
+  flutter_local_notifications: ^18.0.1
 
   # File Handling
   file_picker: ^8.1.7

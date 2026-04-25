@@ -1,11 +1,12 @@
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fb;
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../constants/app_constants.dart';
-import 'api_service.dart';
 
 class AuthService {
-  final ApiService _api = ApiService();
-  final FlutterSecureStorage _storage = const FlutterSecureStorage();
+  final fb.FirebaseAuth _auth = fb.FirebaseAuth.instance;
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
 
+  // ── Email/Password Register ──────────────────────────────────────────────
   Future<Map<String, dynamic>> registerUser({
     required String name,
     required String email,
@@ -13,62 +14,101 @@ class AuthService {
     required String password,
     required String role,
   }) async {
-    final res = await _api.post('/auth/register', data: {
+    final cred = await _auth.createUserWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+    final uid = cred.user!.uid;
+    final userData = {
+      'userId': uid,
       'fullName': name,
       'email': email,
       'phone': phone,
-      'password': password,
       'role': role,
-    });
-    return res.data as Map<String, dynamic>;
+      'otpVerified': true,
+      'createdAt': FieldValue.serverTimestamp(),
+    };
+    await _db.collection('users').doc(uid).set(userData);
+    return {'userId': uid, 'user': userData};
   }
 
+  // ── Email/Password Login ─────────────────────────────────────────────────
   Future<Map<String, dynamic>> loginWithPassword({
     required String emailOrPhone,
     required String password,
   }) async {
-    final res = await _api.post('/auth/login', data: {
-      'emailOrPhone': emailOrPhone,
-      'password': password,
-    });
-    final data = res.data as Map<String, dynamic>;
-    await _storage.write(key: AppConstants.jwtTokenKey, value: data['token']);
-    return data;
+    final email = emailOrPhone.contains('@')
+        ? emailOrPhone
+        : await _emailFromPhone(emailOrPhone);
+    final cred = await _auth.signInWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+    final uid = cred.user!.uid;
+    final token = await cred.user!.getIdToken() ?? '';
+    final doc = await _db.collection('users').doc(uid).get();
+    return {'token': token, 'user': doc.data()!};
   }
 
+  // ── Phone OTP ────────────────────────────────────────────────────────────
   Future<Map<String, dynamic>> loginWithOtp({required String phone}) async {
-    final res = await _api.post('/auth/request-otp', data: {'phone': phone});
-    return res.data as Map<String, dynamic>;
+    // Returns verificationId so the OTP screen can verify
+    String? verificationId;
+    await _auth.verifyPhoneNumber(
+      phoneNumber: phone,
+      verificationCompleted: (_) {},
+      verificationFailed: (e) => throw Exception(e.message),
+      codeSent: (id, _) => verificationId = id,
+      codeAutoRetrievalTimeout: (_) {},
+      timeout: const Duration(seconds: AppConstants.otpResendSeconds),
+    );
+    return {'userId': verificationId ?? '', 'verificationId': verificationId};
   }
 
   Future<Map<String, dynamic>> verifyOtp({
-    required String userId,
+    required String userId, // userId == verificationId for phone flow
     required String otpCode,
   }) async {
-    final res = await _api.post('/auth/verify-otp', data: {
-      'userId': userId,
-      'otpCode': otpCode,
-    });
-    final data = res.data as Map<String, dynamic>;
-    if (data['token'] != null) {
-      await _storage.write(key: AppConstants.jwtTokenKey, value: data['token']);
+    final credential = fb.PhoneAuthProvider.credential(
+      verificationId: userId,
+      smsCode: otpCode,
+    );
+    final cred = await _auth.signInWithCredential(credential);
+    final uid = cred.user!.uid;
+    final token = await cred.user!.getIdToken() ?? '';
+
+    // Check if user doc exists; create minimal one if not
+    final doc = await _db.collection('users').doc(uid).get();
+    if (!doc.exists) {
+      await _db.collection('users').doc(uid).set({
+        'userId': uid,
+        'fullName': '',
+        'email': cred.user!.email ?? '',
+        'phone': cred.user!.phoneNumber ?? '',
+        'role': '',
+        'otpVerified': true,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
     }
-    return data;
+    final userData = (await _db.collection('users').doc(uid).get()).data()!;
+    return {'token': token, 'user': userData};
   }
 
-  Future<void> refreshToken() async {
-    final res = await _api.post('/auth/refresh');
-    final data = res.data as Map<String, dynamic>;
-    await _storage.write(key: AppConstants.jwtTokenKey, value: data['token']);
-  }
+  Future<void> logout() async => _auth.signOut();
 
-  Future<void> logout() async {
-    try {
-      await _api.post('/auth/logout');
-    } catch (_) {}
-    await _storage.delete(key: AppConstants.jwtTokenKey);
-  }
+  Future<String?> getStoredToken() async =>
+      _auth.currentUser?.getIdToken();
 
-  Future<String?> getStoredToken() =>
-      _storage.read(key: AppConstants.jwtTokenKey);
+  fb.User? get currentUser => _auth.currentUser;
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+  Future<String> _emailFromPhone(String phone) async {
+    final snap = await _db
+        .collection('users')
+        .where('phone', isEqualTo: phone)
+        .limit(1)
+        .get();
+    if (snap.docs.isEmpty) throw Exception('No account found for this phone.');
+    return snap.docs.first.data()['email'] as String;
+  }
 }

@@ -49,7 +49,11 @@ class JobListing {
         radiusKm: (json['radiusKm'] ?? 10).toDouble(),
         status: json['status'] ?? 'active',
         createdAt: json['createdAt'] != null
-            ? DateTime.parse(json['createdAt'])
+            ? (json['createdAt'] is DateTime
+                ? json['createdAt']
+                : json['createdAt'].runtimeType.toString().contains('Timestamp')
+                    ? (json['createdAt'] as dynamic).toDate()
+                    : DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now())
             : DateTime.now(),
         employerName: json['employerName'],
         employerVerified: json['employerVerified'],

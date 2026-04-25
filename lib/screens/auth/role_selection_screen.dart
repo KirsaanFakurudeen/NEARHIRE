@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../providers/auth_provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/constants/app_constants.dart';
-import '../../core/services/api_service.dart';
 import '../../app.dart';
 
 class RoleSelectionScreen extends StatefulWidget {
@@ -20,10 +20,19 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
   Future<void> _selectRole(String role) async {
     setState(() => _isLoading = true);
     try {
-      final api = ApiService();
-      final res = await api.patch('/users/${widget.userId}/role', data: {'role': role});
-      if (!mounted) return;
-      await context.read<AuthProvider>().setRoleAndUser(res.data);
+      final auth = context.read<AuthProvider>();
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.userId)
+          .update({'role': role});
+      await auth.setRoleAndUser({
+        'userId': widget.userId,
+        'fullName': auth.user?.fullName ?? '',
+        'email': auth.user?.email ?? '',
+        'phone': auth.user?.phone ?? '',
+        'role': role,
+        'otpVerified': true,
+      });
       if (!mounted) return;
       Navigator.of(context).pushReplacementNamed(dashboardRouteForRole(role));
     } catch (e) {

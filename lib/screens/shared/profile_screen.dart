@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../providers/auth_provider.dart';
-import '../../core/services/api_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/constants/app_constants.dart';
 import '../../widgets/rating_widget.dart';
@@ -16,8 +16,6 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final _formKey = GlobalKey<FormState>();
-  final ApiService _api = ApiService();
-
   // Seeker fields
   final _nameCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
@@ -33,6 +31,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isLoading = false;
   String? _resumeFileName;
   double _averageRating = 0;
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   @override
   void initState() {
@@ -44,8 +43,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _isLoading = true);
     try {
       final auth = context.read<AuthProvider>();
-      final res = await _api.get('/users/${auth.user?.userId}/profile');
-      final data = res.data['profile'] ?? {};
+      final doc = await _db.collection('users').doc(auth.user?.userId).get();
+      final data = doc.data() ?? {};
       if (auth.role == AppConstants.roleSeeker) {
         _nameCtrl.text = data['fullName'] ?? '';
         _phoneCtrl.text = data['phone'] ?? '';
@@ -90,7 +89,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               'type': _businessTypeCtrl.text.trim(),
               'description': _descriptionCtrl.text.trim(),
             };
-      await _api.patch('/users/${auth.user?.userId}/profile', data: data);
+      await _db.collection('users').doc(auth.user?.userId).update(data);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Profile saved successfully')),

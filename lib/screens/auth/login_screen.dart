@@ -49,11 +49,68 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _loginWithOtp() {
-    Navigator.of(context).pushNamed('/otp', arguments: {
-      'userId': '',
-      'contact': _contactCtrl.text.trim(),
-      'isLoginFlow': true,
-    });
+    final _otpContactCtrl = TextEditingController();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          left: AppTheme.paddingL,
+          right: AppTheme.paddingL,
+          top: AppTheme.paddingL,
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + AppTheme.paddingL,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Login with OTP', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 4),
+            Text('Enter your phone number to receive an OTP',
+                style: Theme.of(context).textTheme.bodyMedium),
+            const SizedBox(height: 20),
+            TextField(
+              controller: _otpContactCtrl,
+              keyboardType: TextInputType.phone,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'Phone Number',
+                prefixIcon: Icon(Icons.phone_outlined),
+                hintText: '+1234567890',
+              ),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () async {
+                final contact = _otpContactCtrl.text.trim();
+                if (contact.isEmpty) return;
+                Navigator.pop(ctx);
+                final auth = context.read<AuthProvider>();
+                try {
+                  final data = await auth.requestOtp(phone: contact);
+                  if (!mounted) return;
+                  Navigator.of(context).pushNamed('/otp', arguments: {
+                    'userId': data['verificationId'] ?? '',
+                    'contact': contact,
+                    'isLoginFlow': true,
+                  });
+                } catch (e) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(e.toString()),
+                        backgroundColor: AppTheme.errorColor),
+                  );
+                }
+              },
+              child: const Text('Send OTP'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -63,20 +120,22 @@ class _LoginScreenState extends State<LoginScreen> {
       body: Stack(
         children: [
           SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(AppTheme.paddingL),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 48),
-                    Text('Welcome back',
-                        style: Theme.of(context).textTheme.displayLarge),
-                    const SizedBox(height: 8),
-                    Text('Sign in to find jobs near you',
-                        style: Theme.of(context).textTheme.bodyMedium),
-                    const SizedBox(height: 40),
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(AppTheme.paddingL),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text('Welcome back',
+                          style: Theme.of(context).textTheme.displayLarge,
+                          textAlign: TextAlign.center),
+                      const SizedBox(height: 8),
+                      Text('Sign in to find jobs near you',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                          textAlign: TextAlign.center),
+                      const SizedBox(height: 40),
                     TextFormField(
                       controller: _contactCtrl,
                       keyboardType: TextInputType.emailAddress,
@@ -126,62 +185,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 32),
-                    const Divider(),
-                    const SizedBox(height: 8),
-                    Center(
-                      child: Text(
-                        '— UI Testing —',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppTheme.textSecondary,
-                              fontSize: 12,
-                            ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            icon: const Icon(Icons.business_center, size: 18),
-                            label: const Text('Employer UI'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppTheme.primaryColor,
-                              minimumSize: const Size(0, 48),
-                            ),
-                            onPressed: () async {
-                              await context
-                                  .read<AuthProvider>()
-                                  .devSkipLogin('employer');
-                              if (!mounted) return;
-                              Navigator.of(context)
-                                  .pushReplacementNamed('/employer-dashboard');
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            icon: const Icon(Icons.person_search, size: 18),
-                            label: const Text('Seeker UI'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppTheme.accentColor,
-                              side: const BorderSide(color: AppTheme.accentColor),
-                              minimumSize: const Size(0, 48),
-                            ),
-                            onPressed: () async {
-                              await context
-                                  .read<AuthProvider>()
-                                  .devSkipLogin('seeker');
-                              if (!mounted) return;
-                              Navigator.of(context)
-                                  .pushReplacementNamed('/seeker-dashboard');
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

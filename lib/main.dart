@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
+import 'firebase_options.dart';
 import 'providers/auth_provider.dart';
 import 'providers/job_provider.dart';
 import 'providers/application_provider.dart';
 import 'providers/chat_provider.dart';
 import 'providers/location_provider.dart';
+import 'core/services/notification_service.dart';
 import 'app.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Firebase and notifications disabled for UI testing
-  // await Firebase.initializeApp();
-  // await NotificationService().initialize();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  await NotificationService().initialize();
   runApp(const NearHireApp());
 }
 

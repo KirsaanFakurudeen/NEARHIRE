@@ -4,7 +4,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/job_provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
-import '../../core/services/api_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/job_listing.dart';
 
 class EmployerDashboard extends StatefulWidget {
@@ -19,7 +19,6 @@ class _EmployerDashboardState extends State<EmployerDashboard> {
   int _totalApplications = 0;
   int _totalHires = 0;
   bool _statsLoading = false;
-  final ApiService _api = ApiService();
 
   @override
   void initState() {
@@ -32,11 +31,26 @@ class _EmployerDashboardState extends State<EmployerDashboard> {
     final userId = context.read<AuthProvider>().user?.userId ?? '';
     await context.read<JobProvider>().fetchEmployerJobs(userId);
     try {
-      final res = await _api.get('/employers/$userId/stats');
-      setState(() {
-        _totalApplications = res.data['totalApplications'] ?? 0;
-        _totalHires = res.data['totalHires'] ?? 0;
-      });
+      final db = FirebaseFirestore.instance;
+      // Get all job IDs for this employer
+      final jobSnap = await db
+          .collection('jobs')
+          .where('employerId', isEqualTo: userId)
+          .get();
+      final jobIds = jobSnap.docs.map((d) => d.id).toList();
+      if (jobIds.isNotEmpty) {
+        // Firestore 'whereIn' supports up to 30 items
+        final appSnap = await db
+            .collection('applications')
+            .where('jobId', whereIn: jobIds.take(30).toList())
+            .get();
+        setState(() {
+          _totalApplications = appSnap.docs.length;
+          _totalHires = appSnap.docs
+              .where((d) => d.data()['status'] == 'hired')
+              .length;
+        });
+      }
     } catch (_) {}
     if (mounted) setState(() => _statsLoading = false);
   }

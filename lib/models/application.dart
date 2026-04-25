@@ -35,7 +35,9 @@ class Application {
         resumeUrl: json['resumeUrl'],
         status: json['status'] ?? 'pending',
         appliedAt: json['appliedAt'] != null
-            ? DateTime.parse(json['appliedAt'])
+            ? (json['appliedAt'] is String
+                ? DateTime.tryParse(json['appliedAt']) ?? DateTime.now()
+                : (json['appliedAt'] as dynamic).toDate())
             : DateTime.now(),
         jobTitle: json['jobTitle'],
         employerName: json['employerName'],

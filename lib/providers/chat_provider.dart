@@ -1,16 +1,16 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/message.dart';
-import '../core/services/api_service.dart';
-import '../core/services/socket_service.dart';
 
 class ChatProvider extends ChangeNotifier {
-  final ApiService _api = ApiService();
-  final SocketService _socket = SocketService();
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   List<Message> _messages = [];
   bool _isLoading = false;
   String? _error;
   String? _currentApplicationId;
+  StreamSubscription<QuerySnapshot>? _subscription;
 
   List<Message> get messages => _messages;
   bool get isLoading => _isLoading;
@@ -21,34 +21,43 @@ class ChatProvider extends ChangeNotifier {
     _isLoading = true;
     _error = null;
     notifyListeners();
-    try {
-      final res = await _api.get('/messages/$applicationId');
-      final List data = res.data['messages'] ?? [];
-      _messages = data.map((m) => Message.fromJson(m)).toList();
-      _socket.joinRoom(applicationId);
-      _socket.offMessages();
-      _socket.listenForMessages(_onMessageReceived);
-    } catch (e) {
-      _error = e.toString();
-    } finally {
+
+    await _subscription?.cancel();
+
+    _subscription = _db
+        .collection('messages')
+        .where('applicationId', isEqualTo: applicationId)
+        .orderBy('createdAt')
+        .snapshots()
+        .listen((snap) {
+      _messages = snap.docs.map((d) {
+        final data = d.data();
+        final ts = data['createdAt'];
+        return Message.fromJson({
+          ...data,
+          'messageId': d.id,
+          'createdAt': ts is Timestamp
+              ? ts.toDate().toIso8601String()
+              : DateTime.now().toIso8601String(),
+        });
+      }).toList();
       _isLoading = false;
       notifyListeners();
-    }
+    }, onError: (e) {
+      _error = e.toString();
+      _isLoading = false;
+      notifyListeners();
+    });
   }
 
-  void _onMessageReceived(Map<String, dynamic> data) {
-    final message = Message.fromJson(data);
-    _messages.add(message);
-    notifyListeners();
-  }
-
-  void sendMessage({
+  Future<void> sendMessage({
     required String senderId,
     required String receiverId,
     required String content,
-  }) {
+  }) async {
     if (_currentApplicationId == null) return;
 
+    // Optimistic update
     final optimistic = Message(
       messageId: DateTime.now().millisecondsSinceEpoch.toString(),
       senderId: senderId,
@@ -61,18 +70,27 @@ class ChatProvider extends ChangeNotifier {
     _messages.add(optimistic);
     notifyListeners();
 
-    _socket.sendMessage(
-      senderId: senderId,
-      receiverId: receiverId,
-      applicationId: _currentApplicationId!,
-      content: content,
-    );
+    await _db.collection('messages').add({
+      'senderId': senderId,
+      'receiverId': receiverId,
+      'applicationId': _currentApplicationId!,
+      'content': content,
+      'isRead': false,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
   }
 
   void clearChat() {
+    _subscription?.cancel();
+    _subscription = null;
     _messages = [];
     _currentApplicationId = null;
-    _socket.offMessages();
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _subscription?.cancel();
+    super.dispose();
   }
 }

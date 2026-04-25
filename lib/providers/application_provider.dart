@@ -1,10 +1,12 @@
 import 'package:flutter/foundation.dart';
-import 'package:dio/dio.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'dart:io';
 import '../models/application.dart';
-import '../core/services/api_service.dart';
 
 class ApplicationProvider extends ChangeNotifier {
-  final ApiService _api = ApiService();
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
 
   List<Application> _applications = [];
   bool _isLoading = false;
@@ -15,34 +17,38 @@ class ApplicationProvider extends ChangeNotifier {
   String? get error => _error;
 
   Future<void> fetchApplicationsForSeeker(String seekerId) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
+    _isLoading = true; _error = null; notifyListeners();
     try {
-      final res = await _api.get('/applications/seeker/$seekerId');
-      final List data = res.data['applications'] ?? [];
-      _applications = data.map((a) => Application.fromJson(a)).toList();
+      final snap = await _db
+          .collection('applications')
+          .where('seekerId', isEqualTo: seekerId)
+          .orderBy('appliedAt', descending: true)
+          .get();
+      _applications = snap.docs
+          .map((d) => Application.fromJson({...d.data(), 'applicationId': d.id}))
+          .toList();
     } catch (e) {
       _error = e.toString();
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      _isLoading = false; notifyListeners();
     }
   }
 
   Future<void> fetchApplicationsForJob(String jobId) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
+    _isLoading = true; _error = null; notifyListeners();
     try {
-      final res = await _api.get('/applications/job/$jobId');
-      final List data = res.data['applications'] ?? [];
-      _applications = data.map((a) => Application.fromJson(a)).toList();
+      final snap = await _db
+          .collection('applications')
+          .where('jobId', isEqualTo: jobId)
+          .orderBy('appliedAt', descending: true)
+          .get();
+      _applications = snap.docs
+          .map((d) => Application.fromJson({...d.data(), 'applicationId': d.id}))
+          .toList();
     } catch (e) {
       _error = e.toString();
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      _isLoading = false; notifyListeners();
     }
   }
 
@@ -52,26 +58,29 @@ class ApplicationProvider extends ChangeNotifier {
     required String applyMethod,
     String? resumeUrl,
   }) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
+    _isLoading = true; _error = null; notifyListeners();
     try {
-      final res = await _api.post('/applications', data: {
+      final data = {
         'jobId': jobId,
         'seekerId': seekerId,
         'applyMethod': applyMethod,
         if (resumeUrl != null) 'resumeUrl': resumeUrl,
+        'status': 'pending',
+        'appliedAt': FieldValue.serverTimestamp(),
+      };
+      final ref = await _db.collection('applications').add(data);
+      final app = Application.fromJson({
+        ...data,
+        'applicationId': ref.id,
+        'appliedAt': DateTime.now().toIso8601String(),
       });
-      final app = Application.fromJson(res.data['application']);
       _applications.insert(0, app);
       notifyListeners();
       return app;
     } catch (e) {
-      _error = e.toString();
-      rethrow;
+      _error = e.toString(); rethrow;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      _isLoading = false; notifyListeners();
     }
   }
 
@@ -80,52 +89,45 @@ class ApplicationProvider extends ChangeNotifier {
     required String seekerId,
     required String filePath,
   }) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
+    _isLoading = true; _error = null; notifyListeners();
     try {
-      final formData = FormData.fromMap({
-        'jobId': jobId,
-        'seekerId': seekerId,
-        'applyMethod': 'resume',
-        'resume': await MultipartFile.fromFile(filePath),
-      });
-      final res = await _api.postFormData('/applications/upload', formData);
-      final app = Application.fromJson(res.data['application']);
-      _applications.insert(0, app);
-      notifyListeners();
+      // Upload PDF to Firebase Storage
+      final file = File(filePath);
+      final storageRef = _storage
+          .ref()
+          .child('resumes/$seekerId/${DateTime.now().millisecondsSinceEpoch}.pdf');
+      await storageRef.putFile(file);
+      final resumeUrl = await storageRef.getDownloadURL();
+      await submitApplication(
+        jobId: jobId,
+        seekerId: seekerId,
+        applyMethod: 'resume',
+        resumeUrl: resumeUrl,
+      );
     } catch (e) {
-      _error = e.toString();
-      rethrow;
+      _error = e.toString(); rethrow;
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      _isLoading = false; notifyListeners();
     }
   }
 
-  Future<void> updateApplicationStatus(
-      String applicationId, String status) async {
+  Future<void> updateApplicationStatus(String applicationId, String status) async {
     try {
-      await _api.patch('/applications/$applicationId', data: {'status': status});
+      await _db.collection('applications').doc(applicationId).update({'status': status});
       final idx = _applications.indexWhere((a) => a.applicationId == applicationId);
       if (idx != -1) {
         final old = _applications[idx];
-        _applications[idx] = Application.fromJson({
-          ...old.toJson(),
-          'status': status,
-        });
+        _applications[idx] = Application.fromJson({...old.toJson(), 'status': status});
         notifyListeners();
       }
     } catch (e) {
-      _error = e.toString();
-      rethrow;
+      _error = e.toString(); rethrow;
     }
   }
 
-  Future<void> scheduleInterview(
-      String applicationId, DateTime scheduledAt) async {
+  Future<void> scheduleInterview(String applicationId, DateTime scheduledAt) async {
     try {
-      await _api.patch('/applications/$applicationId', data: {
+      await _db.collection('applications').doc(applicationId).update({
         'status': 'interview_scheduled',
         'interviewScheduledAt': scheduledAt.toIso8601String(),
       });
@@ -140,13 +142,9 @@ class ApplicationProvider extends ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      _error = e.toString();
-      rethrow;
+      _error = e.toString(); rethrow;
     }
   }
 
-  void clearError() {
-    _error = null;
-    notifyListeners();
-  }
+  void clearError() { _error = null; notifyListeners(); }
 }

@@ -68,13 +68,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
       appBar: AppBar(title: const Text('Create Account')),
       body: Stack(
         children: [
-          SingleChildScrollView(
-            padding: const EdgeInsets.all(AppTheme.paddingL),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  const SizedBox(height: 8),
+          Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(AppTheme.paddingL),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const SizedBox(height: 8),
                   TextFormField(
                     controller: _nameCtrl,
                     decoration: const InputDecoration(
@@ -162,7 +164,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     onPressed: isLoading ? null : _register,
                     child: const Text('Create Account'),
                   ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
