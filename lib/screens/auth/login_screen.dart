@@ -34,9 +34,8 @@ class _LoginScreenState extends State<LoginScreen> {
         password: _passwordCtrl.text,
       );
       if (!mounted) return;
-      final role = auth.user?.role ?? '';
       Navigator.of(context).pushReplacementNamed(
-        dashboardRouteForRole(role),
+        dashboardRouteForRole(auth.role),
       );
     } catch (e) {
       if (!mounted) return;
@@ -50,7 +49,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _loginWithOtp() {
-    final _otpContactCtrl = TextEditingController();
+    final otpContactCtrl = TextEditingController();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -68,13 +67,14 @@ class _LoginScreenState extends State<LoginScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Login with OTP', style: Theme.of(context).textTheme.titleLarge),
+            Text('Login with OTP',
+                style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 4),
             Text('Enter your phone number to receive an OTP',
                 style: Theme.of(context).textTheme.bodyMedium),
             const SizedBox(height: 20),
             TextField(
-              controller: _otpContactCtrl,
+              controller: otpContactCtrl,
               keyboardType: TextInputType.phone,
               autofocus: true,
               decoration: const InputDecoration(
@@ -86,7 +86,7 @@ class _LoginScreenState extends State<LoginScreen> {
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () async {
-                final contact = _otpContactCtrl.text.trim();
+                final contact = otpContactCtrl.text.trim();
                 if (contact.isEmpty) return;
                 Navigator.pop(ctx);
                 final auth = context.read<AuthProvider>();
@@ -101,7 +101,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 } catch (e) {
                   if (!mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(e.toString()),
+                    SnackBar(
+                        content: Text(e.toString()),
                         backgroundColor: AppTheme.errorColor),
                   );
                 }
@@ -137,50 +138,55 @@ class _LoginScreenState extends State<LoginScreen> {
                           style: Theme.of(context).textTheme.bodyMedium,
                           textAlign: TextAlign.center),
                       const SizedBox(height: 40),
-                    TextFormField(
-                      controller: _contactCtrl,
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(
-                        labelText: 'Email or Phone',
-                        prefixIcon: Icon(Icons.person_outline),
-                      ),
-                      validator: Validators.emailOrPhone,
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _passwordCtrl,
-                      obscureText: _obscurePassword,
-                      decoration: InputDecoration(
-                        labelText: 'Password',
-                        prefixIcon: const Icon(Icons.lock_outline),
-                        suffixIcon: IconButton(
-                          icon: Icon(_obscurePassword
-                              ? Icons.visibility_off
-                              : Icons.visibility),
-                          onPressed: () => setState(
-                              () => _obscurePassword = !_obscurePassword),
+                      TextFormField(
+                        controller: _contactCtrl,
+                        keyboardType: TextInputType.emailAddress,
+                        decoration: const InputDecoration(
+                          labelText: 'Email or Phone',
+                          prefixIcon: Icon(Icons.person_outline),
                         ),
+                        validator: Validators.emailOrPhone,
                       ),
-                      validator: Validators.password,
-                    ),
-                    const SizedBox(height: 32),
-                    ElevatedButton(
-                      onPressed: isLoading ? null : _login,
-                      child: const Text('Login'),
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text("Don't have an account?",
-                            style: Theme.of(context).textTheme.bodyMedium),
-                        TextButton(
-                          onPressed: () =>
-                              Navigator.of(context).pushNamed('/register'),
-                          child: const Text('Register'),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _passwordCtrl,
+                        obscureText: _obscurePassword,
+                        decoration: InputDecoration(
+                          labelText: 'Password',
+                          prefixIcon: const Icon(Icons.lock_outline),
+                          suffixIcon: IconButton(
+                            icon: Icon(_obscurePassword
+                                ? Icons.visibility_off
+                                : Icons.visibility),
+                            onPressed: () => setState(
+                                () => _obscurePassword = !_obscurePassword),
+                          ),
                         ),
-                      ],
-                    ),
+                        validator: Validators.password,
+                      ),
+                      const SizedBox(height: 32),
+                      ElevatedButton(
+                        onPressed: isLoading ? null : _login,
+                        child: const Text('Login'),
+                      ),
+                      const SizedBox(height: 12),
+                      OutlinedButton(
+                        onPressed: isLoading ? null : _loginWithOtp,
+                        child: const Text('Login with OTP'),
+                      ),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text("Don't have an account?",
+                              style: Theme.of(context).textTheme.bodyMedium),
+                          TextButton(
+                            onPressed: () =>
+                                Navigator.of(context).pushNamed('/register'),
+                            child: const Text('Register'),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),

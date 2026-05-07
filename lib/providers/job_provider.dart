@@ -25,7 +25,8 @@ class JobProvider extends ChangeNotifier {
   double get radiusKm => _radiusKm;
   bool get isLoading => _isLoading;
   String? get error => _error;
-  bool get hasMore => false; // Firestore real-time; no pagination needed for MVP
+  bool get hasMore =>
+      false; // Firestore real-time; no pagination needed for MVP
   String? get filterJobType => _filterJobType;
   double? get filterMinPay => _filterMinPay;
   double? get filterMaxPay => _filterMaxPay;
@@ -49,29 +50,9 @@ class JobProvider extends ChangeNotifier {
           .limit(100)
           .get();
 
-      final jobs = snap.docs.map((d) => JobListing.fromJson({...d.data(), 'jobId': d.id})).toList();
-
-      // Batch-fetch unique employer names
-      final employerIds = jobs.map((j) => j.employerId).toSet().toList();
-      final employerNames = <String, String>{};
-      for (final batch in _chunks(employerIds, 10)) {
-        final empSnap = await _db
-            .collection('users')
-            .where(FieldPath.documentId, whereIn: batch)
-            .get();
-        for (final doc in empSnap.docs) {
-          employerNames[doc.id] =
-              doc.data()['businessName'] ?? doc.data()['fullName'] ?? '';
-        }
-      }
-
-      _jobs = jobs.map((j) => j.employerName != null && j.employerName!.isNotEmpty
-          ? j
-          : JobListing.fromJson({
-              ...j.toJson(),
-              'employerName': employerNames[j.employerId] ?? '',
-            })).toList();
-
+      _jobs = snap.docs
+          .map((d) => JobListing.fromJson({...d.data(), 'jobId': d.id}))
+          .toList();
       _applyFilters();
     } catch (e) {
       _error = e.toString();
@@ -91,7 +72,9 @@ class JobProvider extends ChangeNotifier {
           .where('employerId', isEqualTo: employerId)
           .orderBy('createdAt', descending: true)
           .get();
-      _jobs = snap.docs.map((d) => JobListing.fromJson({...d.data(), 'jobId': d.id})).toList();
+      _jobs = snap.docs
+          .map((d) => JobListing.fromJson({...d.data(), 'jobId': d.id}))
+          .toList();
       _filteredJobs = List.from(_jobs);
     } catch (e) {
       _error = e.toString();
@@ -150,15 +133,9 @@ class JobProvider extends ChangeNotifier {
     }
   }
 
-  void setRadius(double radius) { _radiusKm = radius; notifyListeners(); }
-
-  // Split a list into chunks of [size] for Firestore whereIn (max 10)
-  List<List<T>> _chunks<T>(List<T> list, int size) {
-    final chunks = <List<T>>[];
-    for (var i = 0; i < list.length; i += size) {
-      chunks.add(list.sublist(i, i + size > list.length ? list.length : i + size));
-    }
-    return chunks;
+  void setRadius(double radius) {
+    _radiusKm = radius;
+    notifyListeners();
   }
 
   void setSearchQuery(String query) {
@@ -166,7 +143,8 @@ class JobProvider extends ChangeNotifier {
     _applyFilters();
   }
 
-  void applyFilters({String? jobType, double? minPay, double? maxPay, String? schedule}) {
+  void applyFilters(
+      {String? jobType, double? minPay, double? maxPay, String? schedule}) {
     _filterJobType = jobType;
     _filterMinPay = minPay;
     _filterMaxPay = maxPay;
@@ -188,15 +166,28 @@ class JobProvider extends ChangeNotifier {
     _filteredJobs = _jobs.where((job) {
       if (_searchQuery.isNotEmpty &&
           !job.title.toLowerCase().contains(_searchQuery) &&
-          !job.description.toLowerCase().contains(_searchQuery)) return false;
+          !job.description.toLowerCase().contains(_searchQuery)) {
+        return false;
+      }
       if (_filterJobType != null && job.jobType != _filterJobType) return false;
       if (_filterMinPay != null && job.payAmount < _filterMinPay!) return false;
       if (_filterMaxPay != null && job.payAmount > _filterMaxPay!) return false;
       if (_filterSchedule != null &&
-          !job.schedule.toLowerCase().contains(_filterSchedule!.toLowerCase())) return false;
-      if (_userLat != null && _userLon != null && job.latitude != 0 && job.longitude != 0) {
+          !job.schedule
+              .toLowerCase()
+              .contains(_filterSchedule!.toLowerCase())) {
+        return false;
+      }
+      if (_userLat != null &&
+          _userLon != null &&
+          job.latitude != 0 &&
+          job.longitude != 0) {
         return DistanceHelper.isWithinRadius(
-          _userLat!, _userLon!, job.latitude, job.longitude, _radiusKm,
+          _userLat!,
+          _userLon!,
+          job.latitude,
+          job.longitude,
+          _radiusKm,
         );
       }
       return true;
@@ -207,7 +198,10 @@ class JobProvider extends ChangeNotifier {
   double getDistanceToJob(JobListing job) {
     if (_userLat == null || _userLon == null) return 0;
     return DistanceHelper.calculateDistanceKm(
-      _userLat!, _userLon!, job.latitude, job.longitude,
+      _userLat!,
+      _userLon!,
+      job.latitude,
+      job.longitude,
     );
   }
 }

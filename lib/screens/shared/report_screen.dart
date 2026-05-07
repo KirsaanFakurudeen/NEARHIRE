@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:provider/provider.dart';
+import '../../core/services/api_service.dart';
 import '../../core/theme/app_theme.dart';
-import '../../providers/auth_provider.dart';
 
 class ReportScreen extends StatefulWidget {
   final String targetId;
   final String targetType;
 
-  const ReportScreen({super.key, required this.targetId, required this.targetType});
+  const ReportScreen(
+      {super.key, required this.targetId, required this.targetType});
 
   static Future<void> show(
     BuildContext context, {
@@ -19,7 +18,8 @@ class ReportScreen extends StatefulWidget {
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppTheme.radiusXL)),
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(AppTheme.radiusXL)),
       ),
       builder: (_) => ReportScreen(targetId: targetId, targetType: targetType),
     );
@@ -30,12 +30,17 @@ class ReportScreen extends StatefulWidget {
 }
 
 class _ReportScreenState extends State<ReportScreen> {
-  final _db = FirebaseFirestore.instance;
+  final ApiService _api = ApiService();
   final _detailsCtrl = TextEditingController();
   String? _reason;
   bool _isLoading = false;
 
-  static const _reasons = ['Fake Job Posting', 'Inappropriate Content', 'Fraud', 'Other'];
+  static const _reasons = [
+    'Fake Job Posting',
+    'Inappropriate Content',
+    'Fraud',
+    'Other',
+  ];
 
   Future<void> _submit() async {
     if (_reason == null) {
@@ -46,14 +51,11 @@ class _ReportScreenState extends State<ReportScreen> {
     }
     setState(() => _isLoading = true);
     try {
-      final reporterId = context.read<AuthProvider>().user?.userId ?? '';
-      await _db.collection('reports').add({
+      await _api.post('/reports', data: {
         'targetId': widget.targetId,
         'targetType': widget.targetType,
-        'reporterId': reporterId,
         'reason': _reason,
         'details': _detailsCtrl.text.trim(),
-        'createdAt': FieldValue.serverTimestamp(),
       });
       if (!mounted) return;
       Navigator.pop(context);
@@ -63,7 +65,8 @@ class _ReportScreenState extends State<ReportScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString()), backgroundColor: AppTheme.errorColor),
+        SnackBar(
+            content: Text(e.toString()), backgroundColor: AppTheme.errorColor),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -91,7 +94,8 @@ class _ReportScreenState extends State<ReportScreen> {
         children: [
           Center(
             child: Container(
-              width: 40, height: 4,
+              width: 40,
+              height: 4,
               decoration: BoxDecoration(
                 color: AppTheme.dividerColor,
                 borderRadius: BorderRadius.circular(2),
@@ -104,7 +108,9 @@ class _ReportScreenState extends State<ReportScreen> {
           DropdownButtonFormField<String>(
             initialValue: _reason,
             decoration: const InputDecoration(labelText: 'Reason'),
-            items: _reasons.map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
+            items: _reasons
+                .map((r) => DropdownMenuItem(value: r, child: Text(r)))
+                .toList(),
             onChanged: (v) => setState(() => _reason = v),
           ),
           const SizedBox(height: 16),
@@ -121,8 +127,11 @@ class _ReportScreenState extends State<ReportScreen> {
           ElevatedButton(
             onPressed: _isLoading ? null : _submit,
             child: _isLoading
-                ? const SizedBox(height: 20, width: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white))
                 : const Text('Submit Report'),
           ),
         ],

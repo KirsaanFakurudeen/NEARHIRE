@@ -48,8 +48,7 @@ class _OtpScreenState extends State<OtpScreen> {
     });
   }
 
-  String get _otpCode =>
-      _controllers.map((c) => c.text).join();
+  String get _otpCode => _controllers.map((c) => c.text).join();
 
   Future<void> _verify() async {
     if (_otpCode.length < 6) {
@@ -101,8 +100,12 @@ class _OtpScreenState extends State<OtpScreen> {
   @override
   void dispose() {
     _timer?.cancel();
-    for (final c in _controllers) c.dispose();
-    for (final f in _focusNodes) f.dispose();
+    for (final c in _controllers) {
+      c.dispose();
+    }
+    for (final f in _focusNodes) {
+      f.dispose();
+    }
     super.dispose();
   }
 
@@ -135,17 +138,19 @@ class _OtpScreenState extends State<OtpScreen> {
                 const SizedBox(height: 40),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: List.generate(6, (i) => _OtpBox(
-                    controller: _controllers[i],
-                    focusNode: _focusNodes[i],
-                    onChanged: (val) {
-                      if (val.isNotEmpty && i < 5) {
-                        _focusNodes[i + 1].requestFocus();
-                      } else if (val.isEmpty && i > 0) {
-                        _focusNodes[i - 1].requestFocus();
-                      }
-                    },
-                  )),
+                  children: List.generate(
+                      6,
+                      (i) => _OtpBox(
+                            controller: _controllers[i],
+                            focusNode: _focusNodes[i],
+                            onChanged: (val) {
+                              if (val.isNotEmpty && i < 5) {
+                                _focusNodes[i + 1].requestFocus();
+                              } else if (val.isEmpty && i > 0) {
+                                _focusNodes[i - 1].requestFocus();
+                              }
+                            },
+                          )),
                 ),
                 const SizedBox(height: 40),
                 ElevatedButton(

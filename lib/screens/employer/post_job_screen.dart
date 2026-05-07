@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 import '../../providers/job_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -26,7 +25,13 @@ class _PostJobScreenState extends State<PostJobScreen> {
   String _jobType = 'full-time';
   double _radius = AppConstants.defaultRadiusKm;
 
-  static const _jobTypes = ['full-time', 'part-time'];
+  static const _jobTypes = [
+    'full-time',
+    'part-time',
+    'freelance',
+    'gig',
+    'shift-based'
+  ];
 
   @override
   void initState() {
@@ -64,7 +69,8 @@ class _PostJobScreenState extends State<PostJobScreen> {
         'payAmount': double.parse(_payCtrl.text.trim()),
         'jobType': _jobType,
         'schedule': _scheduleCtrl.text.trim(),
-        'requiredSkills': _skillsCtrl.text.split(',').map((s) => s.trim()).toList(),
+        'requiredSkills':
+            _skillsCtrl.text.split(',').map((s) => s.trim()).toList(),
         'latitude': loc.latitude,
         'longitude': loc.longitude,
         'radiusKm': _radius,
@@ -77,7 +83,8 @@ class _PostJobScreenState extends State<PostJobScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString()), backgroundColor: AppTheme.errorColor),
+        SnackBar(
+            content: Text(e.toString()), backgroundColor: AppTheme.errorColor),
       );
     }
   }
@@ -119,7 +126,7 @@ class _PostJobScreenState extends State<PostJobScreen> {
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(
                       labelText: 'Pay Amount',
-                      prefixText: '₹ ',
+                      prefixText: '\$ ',
                     ),
                     validator: Validators.payAmount,
                   ),
@@ -162,38 +169,27 @@ class _PostJobScreenState extends State<PostJobScreen> {
                     onChanged: (v) => setState(() => _radius = v),
                   ),
                   const SizedBox(height: 16),
-                  Text('Job Location', style: Theme.of(context).textTheme.titleMedium),
+                  Text('Job Location',
+                      style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 8),
                   if (loc.hasLocation)
                     ClipRRect(
                       borderRadius: BorderRadius.circular(AppTheme.radiusM),
                       child: SizedBox(
                         height: 160,
-                        child: FlutterMap(
-                          options: MapOptions(
-                            initialCenter: LatLng(loc.latitude!, loc.longitude!),
-                            initialZoom: 14,
-                            interactionOptions: const InteractionOptions(
-                              flags: InteractiveFlag.none,
-                            ),
+                        child: GoogleMap(
+                          initialCameraPosition: CameraPosition(
+                            target: LatLng(loc.latitude!, loc.longitude!),
+                            zoom: 14,
                           ),
-                          children: [
-                            TileLayer(
-                              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                              userAgentPackageName: 'com.nearhire.app',
+                          markers: {
+                            Marker(
+                              markerId: const MarkerId('job_loc'),
+                              position: LatLng(loc.latitude!, loc.longitude!),
                             ),
-                            MarkerLayer(
-                              markers: [
-                                Marker(
-                                  point: LatLng(loc.latitude!, loc.longitude!),
-                                  width: 40,
-                                  height: 40,
-                                  child: const Icon(Icons.location_pin,
-                                      color: AppTheme.primaryColor, size: 40),
-                                ),
-                              ],
-                            ),
-                          ],
+                          },
+                          zoomControlsEnabled: false,
+                          myLocationButtonEnabled: false,
                         ),
                       ),
                     )
@@ -217,7 +213,9 @@ class _PostJobScreenState extends State<PostJobScreen> {
             ),
           ),
           if (isLoading)
-            Container(color: Colors.black26, child: const Center(child: CircularProgressIndicator())),
+            Container(
+                color: Colors.black26,
+                child: const Center(child: CircularProgressIndicator())),
         ],
       ),
     );

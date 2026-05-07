@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../providers/auth_provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/constants/app_constants.dart';
+import '../../widgets/rating_widget.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -15,19 +16,21 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final _formKey = GlobalKey<FormState>();
+  // Seeker fields
   final _nameCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _skillsCtrl = TextEditingController();
   final _experienceCtrl = TextEditingController();
   String _availability = 'Full-Time';
 
+  // Employer fields
   final _businessNameCtrl = TextEditingController();
   final _businessTypeCtrl = TextEditingController();
   final _descriptionCtrl = TextEditingController();
 
   bool _isLoading = false;
   String? _resumeFileName;
-  List<Map<String, dynamic>> _feedbacks = [];
+  double _averageRating = 0;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   @override
@@ -53,13 +56,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _businessTypeCtrl.text = data['type'] ?? '';
         _descriptionCtrl.text = data['description'] ?? '';
       }
-      final snap = await _db
-          .collection('ratings')
-          .where('ratedUserId', isEqualTo: auth.user?.userId)
-          .orderBy('createdAt', descending: true)
-          .limit(10)
-          .get();
-      _feedbacks = snap.docs.map((d) => d.data()).toList();
+      _averageRating = (data['averageRating'] ?? 0).toDouble();
     } catch (_) {}
     if (mounted) setState(() => _isLoading = false);
   }
@@ -69,7 +66,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       type: FileType.custom,
       allowedExtensions: ['pdf'],
     );
-    if (result != null) setState(() => _resumeFileName = result.files.single.name);
+    if (result != null) {
+      setState(() => _resumeFileName = result.files.single.name);
+    }
   }
 
   Future<void> _saveProfile() async {
@@ -81,7 +80,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ? {
               'fullName': _nameCtrl.text.trim(),
               'phone': _phoneCtrl.text.trim(),
-              'skills': _skillsCtrl.text.split(',').map((s) => s.trim()).toList(),
+              'skills':
+                  _skillsCtrl.text.split(',').map((s) => s.trim()).toList(),
               'experience': _experienceCtrl.text.trim(),
               'availability': _availability,
             }
@@ -98,7 +98,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString()), backgroundColor: AppTheme.errorColor),
+        SnackBar(
+            content: Text(e.toString()), backgroundColor: AppTheme.errorColor),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -137,40 +138,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (role == AppConstants.roleSeeker) ..._seekerFields()
-                    else ..._employerFields(),
-                    const SizedBox(height: 24),
-                    Text('Feedback Received', style: Theme.of(context).textTheme.titleMedium),
-                    const SizedBox(height: 8),
-                    if (_feedbacks.isEmpty)
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(AppTheme.paddingM),
-                        decoration: BoxDecoration(
-                          color: AppTheme.backgroundLight,
-                          borderRadius: BorderRadius.circular(AppTheme.radiusM),
-                          border: Border.all(color: AppTheme.dividerColor),
-                        ),
-                        child: Text('No feedback yet.',
-                            style: Theme.of(context).textTheme.bodyMedium),
-                      )
+                    if (role == AppConstants.roleSeeker)
+                      ..._seekerFields()
                     else
-                      ...(_feedbacks.map((f) => Container(
-                            width: double.infinity,
-                            margin: const EdgeInsets.only(bottom: 8),
-                            padding: const EdgeInsets.all(AppTheme.paddingM),
-                            decoration: BoxDecoration(
-                              color: AppTheme.backgroundLight,
-                              borderRadius: BorderRadius.circular(AppTheme.radiusM),
-                              border: Border.all(color: AppTheme.dividerColor),
-                            ),
-                            child: Text(
-                              (f['review'] as String?)?.isNotEmpty == true
-                                  ? f['review'] as String
-                                  : 'No written feedback.',
-                              style: Theme.of(context).textTheme.bodyLarge,
-                            ),
-                          ))),
+                      ..._employerFields(),
+                    const SizedBox(height: 24),
+                    Text('My Rating',
+                        style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 8),
+                    RatingWidget(rating: _averageRating),
                     const SizedBox(height: 32),
                     ElevatedButton(
                       onPressed: _saveProfile,
@@ -209,7 +185,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           controller: _skillsCtrl,
           decoration: const InputDecoration(
             labelText: 'Skills (comma-separated)',
-            hintText: 'e.g. Driving, Cooking, Tailoring',
+            hintText: 'e.g. Flutter, Dart, Firebase',
           ),
         ),
         const SizedBox(height: 16),
@@ -220,7 +196,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         const SizedBox(height: 16),
         DropdownButtonFormField<String>(
-          value: _availability,
+          initialValue: _availability,
           decoration: const InputDecoration(labelText: 'Availability'),
           items: ['Full-Time', 'Part-Time', 'Weekends', 'Flexible']
               .map((a) => DropdownMenuItem(value: a, child: Text(a)))
