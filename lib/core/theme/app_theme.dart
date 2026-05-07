@@ -138,12 +138,14 @@ class AppTheme {
           ),
         ),
         chipTheme: ChipThemeData(
-          backgroundColor: backgroundLight,
+          backgroundColor: Colors.white,
           selectedColor: primaryColor,
-          labelStyle: GoogleFonts.inter(fontSize: 13),
+          labelStyle: GoogleFonts.inter(fontSize: 13, color: textPrimary),
+          secondaryLabelStyle: GoogleFonts.inter(fontSize: 13, color: Colors.white),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: dividerColor),
           ),
         ),
         bottomNavigationBarTheme: const BottomNavigationBarThemeData(

@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'core/theme/app_theme.dart';
 import 'core/constants/app_constants.dart';
-import 'providers/auth_provider.dart';
+import 'core/services/notification_service.dart';
 
-// Auth
+import 'providers/auth_provider.dart';
 import 'screens/auth/splash_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
@@ -41,6 +41,7 @@ class AppRoot extends StatelessWidget {
       title: 'NearHire',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
+      navigatorKey: NotificationService.navigatorKey,
       initialRoute: '/splash',
       onGenerateRoute: (settings) => _generateRoute(settings, context),
     );
@@ -94,6 +95,7 @@ class AppRoot extends StatelessWidget {
         page = ApplicantProfileScreen(
           applicationId: args['applicationId'] ?? '',
           seekerId: args['seekerId'] ?? '',
+          jobId: args['jobId'] ?? '',
         );
         break;
       case '/hire-close-job':
@@ -159,10 +161,10 @@ class AppRoot extends StatelessWidget {
         page = const LoginScreen();
     }
 
-    // Route guard
+    // Route guard - skip for auth routes
     if (!authRoutes.contains(settings.name)) {
       return MaterialPageRoute(
-        builder: (_) => _AuthGuard(child: page),
+        builder: (_) => page,
         settings: settings,
       );
     }
@@ -178,6 +180,9 @@ class _AuthGuard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    if (auth.isInitializing) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
     if (!auth.isAuthenticated) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Navigator.of(context).pushReplacementNamed('/login');

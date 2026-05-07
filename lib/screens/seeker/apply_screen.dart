@@ -47,6 +47,7 @@ class _ApplyScreenState extends State<ApplyScreen> {
             jobId: widget.jobId,
             seekerId: auth.user?.userId ?? '',
             applyMethod: 'one-tap',
+            employerId: widget.employerId,
           );
       setState(() { _success = true; });
     } catch (e) {
@@ -80,6 +81,7 @@ class _ApplyScreenState extends State<ApplyScreen> {
             jobId: widget.jobId,
             seekerId: auth.user?.userId ?? '',
             filePath: _resumeFilePath!,
+            employerId: widget.employerId,
           );
       setState(() => _success = true);
     } catch (e) {
@@ -99,6 +101,7 @@ class _ApplyScreenState extends State<ApplyScreen> {
             jobId: widget.jobId,
             seekerId: auth.user?.userId ?? '',
             applyMethod: 'chat',
+            employerId: widget.employerId,
           );
       if (!mounted) return;
       Navigator.of(context).pushReplacementNamed('/chat', arguments: {

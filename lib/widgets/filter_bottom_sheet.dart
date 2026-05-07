@@ -61,7 +61,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
   String? _jobType;
   RangeValues _payRange = const RangeValues(0, 5000);
 
-  static const _jobTypes = ['full-time', 'part-time', 'freelance', 'gig', 'shift-based'];
+  static const _jobTypes = ['full-time', 'part-time'];
 
   @override
   void initState() {
@@ -122,7 +122,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
             ),
             const SizedBox(height: 16),
             Text(
-              'Pay Range: \$${_payRange.start.toStringAsFixed(0)} - \$${_payRange.end.toStringAsFixed(0)}',
+              'Pay Range: ₹${_payRange.start.toStringAsFixed(0)} - ₹${_payRange.end.toStringAsFixed(0)}',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             RangeSlider(
@@ -131,8 +131,8 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
               max: 10000,
               divisions: 100,
               labels: RangeLabels(
-                '\$${_payRange.start.toStringAsFixed(0)}',
-                '\$${_payRange.end.toStringAsFixed(0)}',
+                '₹${_payRange.start.toStringAsFixed(0)}',
+                '₹${_payRange.end.toStringAsFixed(0)}',
               ),
               onChanged: (v) => setState(() => _payRange = v),
             ),

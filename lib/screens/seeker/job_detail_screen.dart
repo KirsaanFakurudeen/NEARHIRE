@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import '../../providers/job_provider.dart';
 import '../../providers/location_provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/formatters.dart';
 import '../../models/job_listing.dart';
-import '../../widgets/rating_widget.dart';
 
 class JobDetailScreen extends StatefulWidget {
   final String jobId;
@@ -84,16 +84,13 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                 ],
               ],
             ),
-            const SizedBox(height: 4),
-            if (job.employerRating != null)
-              RatingWidget(rating: job.employerRating!, size: 18),
             const SizedBox(height: 16),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
                 _Badge(label: Formatters.jobType(job.jobType), color: AppTheme.primaryColor),
-                _Badge(label: '\$${job.payAmount.toStringAsFixed(0)}', color: AppTheme.successColor),
+                _Badge(label: '₹${job.payAmount.toStringAsFixed(0)}', color: AppTheme.successColor),
                 if (dist != null)
                   _Badge(label: Formatters.distance(dist), color: AppTheme.textSecondary),
               ],
@@ -108,7 +105,10 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
               Wrap(
                 spacing: 8,
                 runSpacing: 4,
-                children: job.requiredSkills.map((s) => Chip(label: Text(s))).toList(),
+                children: job.requiredSkills.map((s) => Chip(
+                  label: Text(s, style: const TextStyle(color: AppTheme.textPrimary)),
+                  backgroundColor: AppTheme.backgroundLight,
+                )).toList(),
               ),
             ],
             const SizedBox(height: 16),
@@ -118,19 +118,31 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
               borderRadius: BorderRadius.circular(AppTheme.radiusM),
               child: SizedBox(
                 height: 160,
-                child: GoogleMap(
-                  initialCameraPosition: CameraPosition(
-                    target: LatLng(job.latitude, job.longitude),
-                    zoom: 14,
-                  ),
-                  markers: {
-                    Marker(
-                      markerId: const MarkerId('job'),
-                      position: LatLng(job.latitude, job.longitude),
+                child: FlutterMap(
+                  options: MapOptions(
+                    initialCenter: LatLng(job.latitude, job.longitude),
+                    initialZoom: 14,
+                    interactionOptions: const InteractionOptions(
+                      flags: InteractiveFlag.none,
                     ),
-                  },
-                  zoomControlsEnabled: false,
-                  myLocationButtonEnabled: false,
+                  ),
+                  children: [
+                    TileLayer(
+                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      userAgentPackageName: 'com.nearhire.app',
+                    ),
+                    MarkerLayer(
+                      markers: [
+                        Marker(
+                          point: LatLng(job.latitude, job.longitude),
+                          width: 40,
+                          height: 40,
+                          child: const Icon(Icons.location_pin,
+                              color: AppTheme.primaryColor, size: 40),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ),

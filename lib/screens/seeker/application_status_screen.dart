@@ -182,7 +182,7 @@ class _ApplicationStatusScreenState extends State<ApplicationStatusScreen> {
                 Navigator.pop(context);
                 Navigator.of(context).pushNamed('/chat', arguments: {
                   'applicationId': app.applicationId,
-                  'otherUserId': app.seekerId,
+                  'otherUserId': app.employerId ?? '',
                   'otherUserName': app.employerName ?? 'Employer',
                   'otherUserRole': 'Employer',
                 });

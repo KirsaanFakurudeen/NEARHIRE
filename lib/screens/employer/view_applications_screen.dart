@@ -96,6 +96,7 @@ class _ViewApplicationsScreenState extends State<ViewApplicationsScreen> {
                         arguments: {
                           'applicationId': apps.applications[i].applicationId,
                           'seekerId': apps.applications[i].seekerId,
+                          'jobId': widget.jobId,
                         },
                       ),
                     ),

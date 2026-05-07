@@ -45,11 +45,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         role: _role,
       );
       if (!mounted) return;
-      Navigator.of(context).pushNamed('/otp', arguments: {
-        'userId': data['userId'] ?? '',
-        'contact': _emailCtrl.text.trim(),
-        'isLoginFlow': false,
-      });
+      Navigator.of(context).pushReplacementNamed(
+        '/role-selection',
+        arguments: {'userId': data['userId'] ?? ''},
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -142,7 +141,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
-                    value: _role,
+                    initialValue: _role,
                     decoration: const InputDecoration(
                       labelText: 'I am a...',
                       prefixIcon: Icon(Icons.work_outline),

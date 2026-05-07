@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../constants/app_constants.dart';
+import 'email_service.dart';
 
 class AuthService {
   final fb.FirebaseAuth _auth = fb.FirebaseAuth.instance;
@@ -29,6 +31,8 @@ class AuthService {
       'createdAt': FieldValue.serverTimestamp(),
     };
     await _db.collection('users').doc(uid).set(userData);
+    // Send welcome email (fire and forget)
+    EmailService.sendWelcomeEmail(toEmail: email, toName: name);
     return {'userId': uid, 'user': userData};
   }
 
@@ -52,17 +56,23 @@ class AuthService {
 
   // ── Phone OTP ────────────────────────────────────────────────────────────
   Future<Map<String, dynamic>> loginWithOtp({required String phone}) async {
-    // Returns verificationId so the OTP screen can verify
-    String? verificationId;
-    await _auth.verifyPhoneNumber(
+    final completer = Completer<String>();
+    _auth.verifyPhoneNumber(
       phoneNumber: phone,
       verificationCompleted: (_) {},
-      verificationFailed: (e) => throw Exception(e.message),
-      codeSent: (id, _) => verificationId = id,
+      verificationFailed: (e) {
+        if (!completer.isCompleted) {
+          completer.completeError(Exception(e.message ?? 'OTP failed'));
+        }
+      },
+      codeSent: (id, _) {
+        if (!completer.isCompleted) completer.complete(id);
+      },
       codeAutoRetrievalTimeout: (_) {},
       timeout: const Duration(seconds: AppConstants.otpResendSeconds),
     );
-    return {'userId': verificationId ?? '', 'verificationId': verificationId};
+    final verificationId = await completer.future;
+    return {'userId': verificationId, 'verificationId': verificationId};
   }
 
   Future<Map<String, dynamic>> verifyOtp({

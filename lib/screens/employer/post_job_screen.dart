@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import '../../providers/job_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -25,7 +26,7 @@ class _PostJobScreenState extends State<PostJobScreen> {
   String _jobType = 'full-time';
   double _radius = AppConstants.defaultRadiusKm;
 
-  static const _jobTypes = ['full-time', 'part-time', 'freelance', 'gig', 'shift-based'];
+  static const _jobTypes = ['full-time', 'part-time'];
 
   @override
   void initState() {
@@ -118,13 +119,13 @@ class _PostJobScreenState extends State<PostJobScreen> {
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(
                       labelText: 'Pay Amount',
-                      prefixText: '\$ ',
+                      prefixText: '₹ ',
                     ),
                     validator: Validators.payAmount,
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
-                    value: _jobType,
+                    initialValue: _jobType,
                     decoration: const InputDecoration(labelText: 'Job Type'),
                     items: _jobTypes
                         .map((t) => DropdownMenuItem(value: t, child: Text(t)))
@@ -168,19 +169,31 @@ class _PostJobScreenState extends State<PostJobScreen> {
                       borderRadius: BorderRadius.circular(AppTheme.radiusM),
                       child: SizedBox(
                         height: 160,
-                        child: GoogleMap(
-                          initialCameraPosition: CameraPosition(
-                            target: LatLng(loc.latitude!, loc.longitude!),
-                            zoom: 14,
-                          ),
-                          markers: {
-                            Marker(
-                              markerId: const MarkerId('job_loc'),
-                              position: LatLng(loc.latitude!, loc.longitude!),
+                        child: FlutterMap(
+                          options: MapOptions(
+                            initialCenter: LatLng(loc.latitude!, loc.longitude!),
+                            initialZoom: 14,
+                            interactionOptions: const InteractionOptions(
+                              flags: InteractiveFlag.none,
                             ),
-                          },
-                          zoomControlsEnabled: false,
-                          myLocationButtonEnabled: false,
+                          ),
+                          children: [
+                            TileLayer(
+                              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                              userAgentPackageName: 'com.nearhire.app',
+                            ),
+                            MarkerLayer(
+                              markers: [
+                                Marker(
+                                  point: LatLng(loc.latitude!, loc.longitude!),
+                                  width: 40,
+                                  height: 40,
+                                  child: const Icon(Icons.location_pin,
+                                      color: AppTheme.primaryColor, size: 40),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
                     )

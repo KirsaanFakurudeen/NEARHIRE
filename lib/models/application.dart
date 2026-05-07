@@ -2,6 +2,7 @@ class Application {
   final String applicationId;
   final String jobId;
   final String seekerId;
+  final String? employerId;
   final String applyMethod;
   final String? resumeUrl;
   final String status;
@@ -16,6 +17,7 @@ class Application {
     required this.applicationId,
     required this.jobId,
     required this.seekerId,
+    this.employerId,
     required this.applyMethod,
     this.resumeUrl,
     required this.status,
@@ -31,6 +33,7 @@ class Application {
         applicationId: json['applicationId'] ?? json['_id'] ?? '',
         jobId: json['jobId'] ?? '',
         seekerId: json['seekerId'] ?? '',
+        employerId: json['employerId'],
         applyMethod: json['applyMethod'] ?? '',
         resumeUrl: json['resumeUrl'],
         status: json['status'] ?? 'pending',
@@ -54,6 +57,7 @@ class Application {
         'applicationId': applicationId,
         'jobId': jobId,
         'seekerId': seekerId,
+        'employerId': employerId,
         'applyMethod': applyMethod,
         'resumeUrl': resumeUrl,
         'status': status,

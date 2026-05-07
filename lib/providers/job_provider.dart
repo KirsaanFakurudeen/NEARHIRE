@@ -49,7 +49,29 @@ class JobProvider extends ChangeNotifier {
           .limit(100)
           .get();
 
-      _jobs = snap.docs.map((d) => JobListing.fromJson({...d.data(), 'jobId': d.id})).toList();
+      final jobs = snap.docs.map((d) => JobListing.fromJson({...d.data(), 'jobId': d.id})).toList();
+
+      // Batch-fetch unique employer names
+      final employerIds = jobs.map((j) => j.employerId).toSet().toList();
+      final employerNames = <String, String>{};
+      for (final batch in _chunks(employerIds, 10)) {
+        final empSnap = await _db
+            .collection('users')
+            .where(FieldPath.documentId, whereIn: batch)
+            .get();
+        for (final doc in empSnap.docs) {
+          employerNames[doc.id] =
+              doc.data()['businessName'] ?? doc.data()['fullName'] ?? '';
+        }
+      }
+
+      _jobs = jobs.map((j) => j.employerName != null && j.employerName!.isNotEmpty
+          ? j
+          : JobListing.fromJson({
+              ...j.toJson(),
+              'employerName': employerNames[j.employerId] ?? '',
+            })).toList();
+
       _applyFilters();
     } catch (e) {
       _error = e.toString();
@@ -129,6 +151,15 @@ class JobProvider extends ChangeNotifier {
   }
 
   void setRadius(double radius) { _radiusKm = radius; notifyListeners(); }
+
+  // Split a list into chunks of [size] for Firestore whereIn (max 10)
+  List<List<T>> _chunks<T>(List<T> list, int size) {
+    final chunks = <List<T>>[];
+    for (var i = 0; i < list.length; i += size) {
+      chunks.add(list.sublist(i, i + size > list.length ? list.length : i + size));
+    }
+    return chunks;
+  }
 
   void setSearchQuery(String query) {
     _searchQuery = query.toLowerCase();

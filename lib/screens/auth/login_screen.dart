@@ -34,8 +34,9 @@ class _LoginScreenState extends State<LoginScreen> {
         password: _passwordCtrl.text,
       );
       if (!mounted) return;
+      final role = auth.user?.role ?? '';
       Navigator.of(context).pushReplacementNamed(
-        dashboardRouteForRole(auth.role),
+        dashboardRouteForRole(role),
       );
     } catch (e) {
       if (!mounted) return;
@@ -166,11 +167,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     ElevatedButton(
                       onPressed: isLoading ? null : _login,
                       child: const Text('Login'),
-                    ),
-                    const SizedBox(height: 12),
-                    OutlinedButton(
-                      onPressed: isLoading ? null : _loginWithOtp,
-                      child: const Text('Login with OTP'),
                     ),
                     const SizedBox(height: 24),
                     Row(

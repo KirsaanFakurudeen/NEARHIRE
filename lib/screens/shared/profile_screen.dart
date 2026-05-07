@@ -5,7 +5,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../providers/auth_provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/constants/app_constants.dart';
-import '../../widgets/rating_widget.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -16,21 +15,19 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final _formKey = GlobalKey<FormState>();
-  // Seeker fields
   final _nameCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _skillsCtrl = TextEditingController();
   final _experienceCtrl = TextEditingController();
   String _availability = 'Full-Time';
 
-  // Employer fields
   final _businessNameCtrl = TextEditingController();
   final _businessTypeCtrl = TextEditingController();
   final _descriptionCtrl = TextEditingController();
 
   bool _isLoading = false;
   String? _resumeFileName;
-  double _averageRating = 0;
+  List<Map<String, dynamic>> _feedbacks = [];
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   @override
@@ -56,7 +53,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _businessTypeCtrl.text = data['type'] ?? '';
         _descriptionCtrl.text = data['description'] ?? '';
       }
-      _averageRating = (data['averageRating'] ?? 0).toDouble();
+      final snap = await _db
+          .collection('ratings')
+          .where('ratedUserId', isEqualTo: auth.user?.userId)
+          .orderBy('createdAt', descending: true)
+          .limit(10)
+          .get();
+      _feedbacks = snap.docs.map((d) => d.data()).toList();
     } catch (_) {}
     if (mounted) setState(() => _isLoading = false);
   }
@@ -66,9 +69,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       type: FileType.custom,
       allowedExtensions: ['pdf'],
     );
-    if (result != null) {
-      setState(() => _resumeFileName = result.files.single.name);
-    }
+    if (result != null) setState(() => _resumeFileName = result.files.single.name);
   }
 
   Future<void> _saveProfile() async {
@@ -139,9 +140,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     if (role == AppConstants.roleSeeker) ..._seekerFields()
                     else ..._employerFields(),
                     const SizedBox(height: 24),
-                    Text('My Rating', style: Theme.of(context).textTheme.titleMedium),
+                    Text('Feedback Received', style: Theme.of(context).textTheme.titleMedium),
                     const SizedBox(height: 8),
-                    RatingWidget(rating: _averageRating),
+                    if (_feedbacks.isEmpty)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(AppTheme.paddingM),
+                        decoration: BoxDecoration(
+                          color: AppTheme.backgroundLight,
+                          borderRadius: BorderRadius.circular(AppTheme.radiusM),
+                          border: Border.all(color: AppTheme.dividerColor),
+                        ),
+                        child: Text('No feedback yet.',
+                            style: Theme.of(context).textTheme.bodyMedium),
+                      )
+                    else
+                      ...(_feedbacks.map((f) => Container(
+                            width: double.infinity,
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.all(AppTheme.paddingM),
+                            decoration: BoxDecoration(
+                              color: AppTheme.backgroundLight,
+                              borderRadius: BorderRadius.circular(AppTheme.radiusM),
+                              border: Border.all(color: AppTheme.dividerColor),
+                            ),
+                            child: Text(
+                              (f['review'] as String?)?.isNotEmpty == true
+                                  ? f['review'] as String
+                                  : 'No written feedback.',
+                              style: Theme.of(context).textTheme.bodyLarge,
+                            ),
+                          ))),
                     const SizedBox(height: 32),
                     ElevatedButton(
                       onPressed: _saveProfile,
@@ -180,7 +209,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           controller: _skillsCtrl,
           decoration: const InputDecoration(
             labelText: 'Skills (comma-separated)',
-            hintText: 'e.g. Flutter, Dart, Firebase',
+            hintText: 'e.g. Driving, Cooking, Tailoring',
           ),
         ),
         const SizedBox(height: 16),

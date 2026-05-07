@@ -7,7 +7,7 @@ import '../../core/theme/app_theme.dart';
 import '../../widgets/job_card.dart';
 import '../../widgets/quick_apply_modal.dart';
 import '../../widgets/filter_bottom_sheet.dart';
-import 'job_map_screen.dart';
+import 'job_flutter_map_screen.dart';
 
 class SeekerDashboard extends StatefulWidget {
   const SeekerDashboard({super.key});
@@ -22,7 +22,7 @@ class _SeekerDashboardState extends State<SeekerDashboard> {
   final _searchCtrl = TextEditingController();
   String? _selectedType;
 
-  static const _jobTypes = ['full-time', 'part-time', 'freelance', 'gig', 'shift-based'];
+  static const _jobTypes = ['full-time', 'part-time'];
 
   @override
   void initState() {
@@ -71,8 +71,11 @@ class _SeekerDashboardState extends State<SeekerDashboard> {
               Row(children: [
                 const Icon(Icons.location_on, size: 12, color: Colors.white70),
                 const SizedBox(width: 2),
-                Text(loc.address,
-                    style: const TextStyle(fontSize: 11, color: Colors.white70)),
+                Flexible(
+                  child: Text(loc.address,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 11, color: Colors.white70)),
+                ),
               ]),
           ],
         ),
@@ -166,7 +169,7 @@ class _SeekerDashboardState extends State<SeekerDashboard> {
           ),
           Expanded(
             child: _mapView
-                ? const JobMapScreen()
+                ? const JobFlutterMapScreen()
                 : _JobListView(),
           ),
         ],
@@ -178,7 +181,7 @@ class _SeekerDashboardState extends State<SeekerDashboard> {
   Widget build(BuildContext context) {
     final pages = [
       _buildHomeTab(),
-      const JobMapScreen(),
+      const JobFlutterMapScreen(),
       _ApplicationsTab(),
       const _ProfileTab(),
     ];

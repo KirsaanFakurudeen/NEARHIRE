@@ -1,20 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../core/services/api_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/theme/app_theme.dart';
-import '../../models/seeker_profile.dart';
-import '../../widgets/rating_widget.dart';
 import '../../providers/application_provider.dart';
+import '../../screens/shared/rating_screen.dart';
 import 'package:provider/provider.dart';
 
 class ApplicantProfileScreen extends StatefulWidget {
   final String applicationId;
   final String seekerId;
+  final String jobId;
 
   const ApplicantProfileScreen({
     super.key,
     required this.applicationId,
     required this.seekerId,
+    this.jobId = '',
   });
 
   @override
@@ -22,11 +23,7 @@ class ApplicantProfileScreen extends StatefulWidget {
 }
 
 class _ApplicantProfileScreenState extends State<ApplicantProfileScreen> {
-  final ApiService _api = ApiService();
-  SeekerProfile? _profile;
-  String? _seekerName;
-  String? _seekerPhone;
-  double _rating = 0;
+  Map<String, dynamic>? _data;
   bool _isLoading = true;
   String? _error;
 
@@ -38,14 +35,12 @@ class _ApplicantProfileScreenState extends State<ApplicantProfileScreen> {
 
   Future<void> _loadProfile() async {
     try {
-      final res = await _api.get('/seekers/${widget.seekerId}');
-      final data = res.data;
-      setState(() {
-        _profile = SeekerProfile.fromJson(data['profile'] ?? {});
-        _seekerName = data['fullName'] ?? '';
-        _seekerPhone = data['phone'] ?? '';
-        _rating = (data['averageRating'] ?? 0).toDouble();
-      });
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.seekerId)
+          .get();
+      if (!doc.exists) throw Exception('Seeker not found');
+      setState(() => _data = doc.data());
     } catch (e) {
       setState(() => _error = e.toString());
     } finally {
@@ -81,8 +76,9 @@ class _ApplicantProfileScreenState extends State<ApplicantProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final name = _data?['fullName'] ?? 'Applicant';
     return Scaffold(
-      appBar: AppBar(title: Text(_seekerName ?? 'Applicant')),
+      appBar: AppBar(title: Text(name)),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
@@ -97,39 +93,42 @@ class _ApplicantProfileScreenState extends State<ApplicantProfileScreen> {
                           radius: 40,
                           backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
                           child: Text(
-                            (_seekerName ?? 'A').substring(0, 1).toUpperCase(),
+                            name.substring(0, 1).toUpperCase(),
                             style: const TextStyle(fontSize: 32, color: AppTheme.primaryColor),
                           ),
                         ),
                       ),
                       const SizedBox(height: 12),
-                      Center(
-                        child: Text(_seekerName ?? '', style: Theme.of(context).textTheme.displayMedium),
-                      ),
-                      Center(child: RatingWidget(rating: _rating)),
+                      Center(child: Text(name, style: Theme.of(context).textTheme.displayMedium)),
                       const SizedBox(height: 24),
-                      _InfoRow(icon: Icons.phone_outlined, label: 'Phone', value: _seekerPhone ?? ''),
-                      if (_profile != null) ...[
-                        _InfoRow(icon: Icons.work_outline, label: 'Experience', value: _profile!.experience),
-                        _InfoRow(icon: Icons.schedule_outlined, label: 'Availability', value: _profile!.availability),
+                      _InfoRow(icon: Icons.phone_outlined, label: 'Phone', value: _data?['phone'] ?? ''),
+                      if (_data?['experience'] != null)
+                        _InfoRow(icon: Icons.work_outline, label: 'Experience', value: _data!['experience']),
+                      if (_data?['availability'] != null)
+                        _InfoRow(icon: Icons.schedule_outlined, label: 'Availability', value: _data!['availability']),
+                      if (_data?['skills'] != null && (_data!['skills'] as List).isNotEmpty) ...[
                         const SizedBox(height: 12),
                         Text('Skills', style: Theme.of(context).textTheme.titleMedium),
                         const SizedBox(height: 8),
                         Wrap(
                           spacing: 8,
                           runSpacing: 4,
-                          children: _profile!.skills
-                              .map((s) => Chip(label: Text(s)))
+                          children: (_data!['skills'] as List)
+                              .map((s) => Chip(
+                                    label: Text(s.toString(),
+                                        style: const TextStyle(color: AppTheme.textPrimary)),
+                                    backgroundColor: AppTheme.backgroundLight,
+                                  ))
                               .toList(),
                         ),
-                        if (_profile!.resumeUrl != null) ...[
-                          const SizedBox(height: 16),
-                          OutlinedButton.icon(
-                            icon: const Icon(Icons.picture_as_pdf),
-                            label: const Text('View Resume'),
-                            onPressed: () => launchUrl(Uri.parse(_profile!.resumeUrl!)),
-                          ),
-                        ],
+                      ],
+                      if (_data?['resumeUrl'] != null) ...[
+                        const SizedBox(height: 16),
+                        OutlinedButton.icon(
+                          icon: const Icon(Icons.picture_as_pdf),
+                          label: const Text('View Resume'),
+                          onPressed: () => launchUrl(Uri.parse(_data!['resumeUrl'])),
+                        ),
                       ],
                       const SizedBox(height: 32),
                       ElevatedButton.icon(
@@ -138,7 +137,7 @@ class _ApplicantProfileScreenState extends State<ApplicantProfileScreen> {
                         onPressed: () => Navigator.of(context).pushNamed('/chat', arguments: {
                           'applicationId': widget.applicationId,
                           'otherUserId': widget.seekerId,
-                          'otherUserName': _seekerName ?? '',
+                          'otherUserName': name,
                           'otherUserRole': 'Job Seeker',
                         }),
                       ),
@@ -147,6 +146,21 @@ class _ApplicantProfileScreenState extends State<ApplicantProfileScreen> {
                         icon: const Icon(Icons.calendar_today_outlined),
                         label: const Text('Schedule Interview'),
                         onPressed: _scheduleInterview,
+                      ),
+                      const SizedBox(height: 12),
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.feedback_outlined),
+                        label: const Text('Give Feedback'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.accentColor,
+                          foregroundColor: AppTheme.textPrimary,
+                        ),
+                        onPressed: () => RatingScreen.show(
+                          context,
+                          jobId: widget.jobId,
+                          ratedUserId: widget.seekerId,
+                          ratedUserName: name,
+                        ),
                       ),
                     ],
                   ),

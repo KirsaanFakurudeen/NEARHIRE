@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../core/services/api_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
+import '../../providers/auth_provider.dart';
 
 class ReportScreen extends StatefulWidget {
   final String targetId;
@@ -28,17 +30,12 @@ class ReportScreen extends StatefulWidget {
 }
 
 class _ReportScreenState extends State<ReportScreen> {
-  final ApiService _api = ApiService();
+  final _db = FirebaseFirestore.instance;
   final _detailsCtrl = TextEditingController();
   String? _reason;
   bool _isLoading = false;
 
-  static const _reasons = [
-    'Fake Job Posting',
-    'Inappropriate Content',
-    'Fraud',
-    'Other',
-  ];
+  static const _reasons = ['Fake Job Posting', 'Inappropriate Content', 'Fraud', 'Other'];
 
   Future<void> _submit() async {
     if (_reason == null) {
@@ -49,11 +46,14 @@ class _ReportScreenState extends State<ReportScreen> {
     }
     setState(() => _isLoading = true);
     try {
-      await _api.post('/reports', data: {
+      final reporterId = context.read<AuthProvider>().user?.userId ?? '';
+      await _db.collection('reports').add({
         'targetId': widget.targetId,
         'targetType': widget.targetType,
+        'reporterId': reporterId,
         'reason': _reason,
         'details': _detailsCtrl.text.trim(),
+        'createdAt': FieldValue.serverTimestamp(),
       });
       if (!mounted) return;
       Navigator.pop(context);
@@ -102,11 +102,9 @@ class _ReportScreenState extends State<ReportScreen> {
           Text('Report', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
-            value: _reason,
+            initialValue: _reason,
             decoration: const InputDecoration(labelText: 'Reason'),
-            items: _reasons
-                .map((r) => DropdownMenuItem(value: r, child: Text(r)))
-                .toList(),
+            items: _reasons.map((r) => DropdownMenuItem(value: r, child: Text(r))).toList(),
             onChanged: (v) => setState(() => _reason = v),
           ),
           const SizedBox(height: 16),
@@ -123,7 +121,8 @@ class _ReportScreenState extends State<ReportScreen> {
           ElevatedButton(
             onPressed: _isLoading ? null : _submit,
             child: _isLoading
-                ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                ? const SizedBox(height: 20, width: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                 : const Text('Submit Report'),
           ),
         ],

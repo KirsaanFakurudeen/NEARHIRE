@@ -3,12 +3,12 @@ import 'package:intl/intl.dart';
 class Formatters {
   Formatters._();
 
-  static String currency(double amount, {String symbol = '\$'}) {
+  static String currency(double amount, {String symbol = '₹'}) {
     final formatter = NumberFormat.currency(symbol: symbol, decimalDigits: 2);
     return formatter.format(amount);
   }
 
-  static String currencyCompact(double amount, {String symbol = '\$'}) {
+  static String currencyCompact(double amount, {String symbol = '₹'}) {
     if (amount >= 1000) {
       return '$symbol${(amount / 1000).toStringAsFixed(1)}k';
     }

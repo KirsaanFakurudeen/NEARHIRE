@@ -57,16 +57,29 @@ class ApplicationProvider extends ChangeNotifier {
     required String seekerId,
     required String applyMethod,
     String? resumeUrl,
+    String? employerId,
   }) async {
     _isLoading = true; _error = null; notifyListeners();
     try {
+      // Enrich with job + seeker names at write time so reads are cheap
+      final jobDoc = await _db.collection('jobs').doc(jobId).get();
+      final seekerDoc = await _db.collection('users').doc(seekerId).get();
+      final jobData = jobDoc.data() ?? {};
+      final seekerData = seekerDoc.data() ?? {};
+      final resolvedEmployerId = employerId ?? jobData['employerId'] ?? '';
+
       final data = {
         'jobId': jobId,
         'seekerId': seekerId,
+        'employerId': resolvedEmployerId,
         'applyMethod': applyMethod,
         if (resumeUrl != null) 'resumeUrl': resumeUrl,
         'status': 'pending',
         'appliedAt': FieldValue.serverTimestamp(),
+        'jobTitle': jobData['title'] ?? '',
+        'employerName': jobData['employerName'] ?? '',
+        'seekerName': seekerData['fullName'] ?? '',
+        'seekerSkills': seekerData['skills'] ?? [],
       };
       final ref = await _db.collection('applications').add(data);
       final app = Application.fromJson({
@@ -88,10 +101,10 @@ class ApplicationProvider extends ChangeNotifier {
     required String jobId,
     required String seekerId,
     required String filePath,
+    String? employerId,
   }) async {
     _isLoading = true; _error = null; notifyListeners();
     try {
-      // Upload PDF to Firebase Storage
       final file = File(filePath);
       final storageRef = _storage
           .ref()
@@ -103,6 +116,7 @@ class ApplicationProvider extends ChangeNotifier {
         seekerId: seekerId,
         applyMethod: 'resume',
         resumeUrl: resumeUrl,
+        employerId: employerId,
       );
     } catch (e) {
       _error = e.toString(); rethrow;

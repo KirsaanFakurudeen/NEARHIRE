@@ -31,27 +31,27 @@ class _ManageListingsScreenState extends State<ManageListingsScreen> {
     super.dispose();
   }
 
-  Future<void> _closeJob(BuildContext context, String jobId) async {
+  Future<void> _closeJob(String jobId) async {
+    final jobProvider = context.read<JobProvider>();
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         title: const Text('Close Job'),
         content: const Text('Are you sure you want to close this listing?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Close')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Close')),
         ],
       ),
     );
-    if (confirm == true && mounted) {
-      try {
-        await context.read<JobProvider>().closeJob(jobId);
-      } catch (e) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: AppTheme.errorColor),
-        );
-      }
+    if (confirm != true || !mounted) return;
+    try {
+      await jobProvider.closeJob(jobId);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString()), backgroundColor: AppTheme.errorColor),
+      );
     }
   }
 
@@ -104,7 +104,7 @@ class _ManageListingsScreenState extends State<ManageListingsScreen> {
                         '/view-applications',
                         arguments: {'jobId': jobs.jobs[i].jobId, 'jobTitle': jobs.jobs[i].title},
                       ),
-                      onClose: () => _closeJob(context, jobs.jobs[i].jobId),
+                      onClose: () => _closeJob(jobs.jobs[i].jobId),
                     ),
                   ),
                 );
@@ -162,7 +162,7 @@ class _ListingCard extends StatelessWidget {
               Text(Formatters.jobType(job.jobType),
                   style: Theme.of(context).textTheme.bodyMedium),
               const SizedBox(height: 4),
-              Text('\$${job.payAmount.toStringAsFixed(0)} • Posted ${Formatters.date(job.createdAt)}',
+              Text('₹${job.payAmount.toStringAsFixed(0)} • Posted ${Formatters.date(job.createdAt)}',
                   style: Theme.of(context).textTheme.bodyMedium),
               const SizedBox(height: 8),
               Row(
